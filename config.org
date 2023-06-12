@@ -1,0 +1,337 @@
+#+TITLE: Hairymunky's Emacs Configuration
+#+AUTHOR: Hairymunky
+#+DESCRIPTION: My personal configuration for Emacs
+#+STARTUP: showeverything
+#+OPTIONS: TOC:2
+
+* TABLE OF CONTENTS :TOC:
+- [[#emacs-base-settings][EMACS BASE SETTINGS]]
+  - [[#plugins-to-make-life-easier][PLUGINS TO MAKE LIFE EASIER]]
+  - [[#base-settings][BASE SETTINGS]]
+  - [[#gui-configuration][GUI CONFIGURATION]]
+  - [[#org-mode][ORG MODE]]
+  - [[#which-key][WHICH KEY]]
+- [[#development][DEVELOPMENT]]
+  - [[#z80-assembly-mode][Z80 Assembly Mode]]
+  - [[#ivy--counsel][Ivy & Counsel]]
+  - [[#lsp-mode][LSP Mode]]
+
+* EMACS BASE SETTINGS
+** PLUGINS TO MAKE LIFE EASIER
+*** Package Management (use-package)
+#+begin_src emacs-lisp
+  (require 'package)
+  (setq package-archives '(("melpa" . "https://melpa.org/packages/")
+			   ("org"   . "https://orgmode.org/elpa/")
+			   ("elpa"  . "https://elpa.gnu.org/packages/")))
+  (package-initialize)
+  (unless package-archive-contents
+    (package-refresh-contents))
+
+  (unless (package-installed-p 'use-package)
+    (package-install 'use-package))
+
+  (require 'use-package)
+  (setq use-package-always-ensure t)
+#+end_src
+
+** BASE SETTINGS
+*** Backup file settings
+#+begin_src emacs-lisp
+  (setq
+   backup-by-copying t     ; dont clobber symlinks
+   backup-directory-alist
+   '(("." . "~/.saves/"))  ; dont litter the filesystem
+   delete-old-versions t
+   kept-new-versions 6
+   kept-old-versions 2
+   version-control t)      ; use versioned backups
+#+end_src
+
+** GUI CONFIGURATION
+
+*** Window Frames
+Get rid of all the clutter for a distraction-free experience
+
+#+begin_src emacs-lisp
+  (setq inhibit-startup-message t)
+  (tool-bar-mode -1)
+  (scroll-bar-mode -1)
+  (menu-bar-mode -1)
+  (tooltip-mode -1)
+#+end_src
+
+*** Highlight the current line
+#+begin_src emacs-lisp
+  (global-hl-line-mode t)
+#+end_src
+
+*** Use "Y or N" for questions instead of "YES or NO"!
+#+begin_src emacs-lisp
+(defalias 'yes-or-no-p 'y-or-n-p)
+#+end_src
+
+*** Padding
+#+begin_src emacs-lisp
+  (set-fringe-mode 10)     ;; Give the frame some breathing space
+#+end_src
+
+*** Pretty Theme
+#+begin_src emacs-lisp
+  (use-package timu-spacegrey-theme
+    :ensure t
+    :config
+    (load-theme 'timu-spacegrey t))
+#+end_src
+
+*** Font Configuration
+
+
+*** Line/Column numbers
+#+begin_src emacs-lisp
+  (global-display-line-numbers-mode)
+  (setq column-number-mode t)
+
+  ;; but not for the following modes :)
+  (dolist (mode '(org-mode-hook
+                  term-mode-hook
+                  shell-mode-hook
+                  eshell-mode-hook))
+    (add-hook mode (lambda () (display-line-numbers-mode 0))))
+#+end_src
+
+*** Nerd Icons/Fonts
+Nerd fonts are required for 'Doom-modeline'
+#+begin_src emacs-lisp
+  (use-package nerd-icons)
+#+end_src
+
+*** Mode Line configuration
+Using 'doom-modeline' to configure the Mode Line
+#+begin_src emacs-lisp
+  (use-package doom-modeline
+    :ensure t
+    :init
+    (doom-modeline-mode 1))
+  
+#+end_src
+
+*** Disable Word Wrap
+#+begin_src emacs-lisp
+  (set-default 'truncate-lines t)
+#+end_src
+
+*** Indentation
+Use spaces, not tabs!
+#+begin_src emacs-lisp
+  (setq-default indent-tabs-mode nil)
+  (setq tab-width 4) ;; Nice default - NOT 8 ffs!!!
+#+end_src
+
+*** NERD Tree
+A File Tree for emacs
+#+begin_src emacs-lisp
+  (use-package neotree
+    :ensure t
+    :init
+    (global-set-key [f8] 'neotree-toggle)
+    (setq neo-theme (if (display-graphic-p) 'icons 'arrow)))
+#+end_src
+
+** ORG MODE
+*** Default Settings
+#+begin_src emacs-lisp
+  (defun gk/org-mode-setup ()
+    (org-indent-mode)
+    (variable-pitch-mode 1)
+    (visual-line-mode 1))
+
+  (defun gk/org-font-setup ()
+    ;; Replace list hyphen with dot
+    (font-lock-add-keywords 'org-mode
+                          '(("^ *\\([-]\\) "
+                             (0 (prog1 () (compose-region (match-beginning 1) (match-end 1) "•"))))))
+
+  ;; Set faces for heading levels
+  (dolist (face '((org-level-1 . 1.2)
+                  (org-level-2 . 1.1)
+                  (org-level-3 . 1.05)
+                  (org-level-4 . 1.0)
+                  (org-level-5 . 1.1)
+                  (org-level-6 . 1.1)
+                  (org-level-7 . 1.1)
+                  (org-level-8 . 1.1)))
+    (set-face-attribute (car face) nil :font "Cantarell" :weight 'regular :height (cdr face)))
+
+  ;; Ensure that anything that should be fixed-pitch in Org files appears that way
+  (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-code nil   :inherit '(shadow fixed-pitch))
+  (set-face-attribute 'org-table nil   :inherit '(shadow fixed-pitch))
+  (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
+  (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
+  (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
+  (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch))
+
+
+
+   (use-package org
+    :hook (org-mode . gk/org-mode-setup)
+    :config
+    (setq  org-ellipsis " ▾")
+    (gk/org-font-setup))
+#+end_src
+
+*** Org Visual Fill Mode
+Make the org document centered in the full width display
+#+begin_src emacs-lisp
+    (defun gk/org-mode-visual-fill ()
+    (setq visual-fill-column-width 100
+          visual-fill-column-center-text t)
+    (visual-fill-column-mode 1))
+  (use-package visual-fill-column
+    :hook (org-mode . gk/org-mode-visual-fill))
+#+end_src
+
+*** Enable Table of Contents
+#+begin_src emacs-lisp
+  (use-package toc-org
+    :commands toc-org-enable
+    :init (add-hook 'org-mode-hook 'toc-org-enable))
+#+end_src
+
+
+*** Enable Org-Bullets
+Org-bullets gives us prettier bullets rather than asterisks.
+#+begin_src emacs-lisp
+  (add-hook 'org-mode-hook 'org-indent-mode)
+  (use-package org-bullets)
+  (add-hook 'org-mode-hook (lambda () (org-bullets-mode 1)))
+#+end_src
+
+** WHICH KEY
+Helper to show emacs shortcust on "Ctrl-X" etc
+#+begin_src emacs-lisp
+  (use-package which-key
+    :init
+    (which-key-mode 1)
+    :config
+    (setq which-key-side-window-location 'bottom
+	  which-key-sort-order #'which-key-key-order-alpha
+	  which-key-sort-uppercase-first nil
+	  which-key-add-column-padding 1
+	  which-key-max-display-columns nil
+	  which-key-min-display-lines 6
+	  which-key-side-window-slot -10
+	  which-key-side-window-max-height 0.25
+	  which-key-idle-delay 0.8
+	  which-key-max-description-length 25
+	  which-key-allow-imprecise-window-fit t
+	  which-key-separator " → " ))
+#+end_src
+
+
+* DEVELOPMENT
+** Z80 Assembly Mode
+#+begin_src emacs-lisp
+  (load "~/.config/emacs/z80-mode.el")
+#+end_src
+
+** Ivy & Counsel
+Completion framework for emacs
+#+begin_src emacs-lisp
+  (use-package ivy
+    :diminish
+    :bind (("C-s" . swiper)
+           :map ivy-minibuffer-map
+           ("TAB" . ivy-alt-done)
+           ("C-l" . ivy-alt-done)
+           ("C-j" . ivy-next-line)
+           ("C-k" . ivy-previous-line)
+           :map ivy-switch-buffer-map
+           ("C-k" . ivy-previous-line)
+           ("C-l" . ivy-done)
+           ("C-d" . ivy-switch-buffer-kill)
+           :map ivy-reverse-i-search-map
+           ("C-k" . ivy-previous-line)
+           ("C-d" . ivy-reverse-i-search-kill))
+    :config
+    (ivy-mode 1))
+
+  (use-package ivy-rich
+    :init
+    (ivy-rich-mode 1))
+
+  (use-package counsel
+    :bind (("C-M-j" . 'counsel-switch-buffer)
+           :map minibuffer-local-map
+           ("C-r" . 'counsel-minibuffer-history))
+    :config
+    (counsel-mode 1))
+#+end_src
+
+** LSP Mode
+
+#+begin_src emacs-lisp
+  (defun gk/lsp-mode-setup ()
+    (setq lsp-headerline-breadcrumb-segments '(path-up-to-project fily symbols))
+    (lsp-headerline-breadcrumb-mode))
+
+  (use-package lsp-mode
+    :commands (lsp lsp-deferred)
+    :hook (lsp-mode . gk/lsp-mode-setup)
+    :init
+    (setq lsp-keymap-prefix "C-c l")
+    :config
+    (lsp-enable-which-key-integration t))
+#+end_src
+
+*** LSP UI
+#+begin_src emacs-lisp
+  (use-package lsp-ui
+    :hook (lsp-mode . lsp-ui-mode)
+    :custom
+    (lsp-ui-doc-position 'bottom))
+#+end_src
+
+*** LSP Treemacs
+#+begin_src emacs-lisp
+  (use-package lsp-treemacs
+    :after lsp)
+#+end_src
+
+*** LSP Ivy
+#+begin_src emacs-lsp
+  (use-package lsp-ivy)
+#+end_src
+
+*** Company Mode
+#+begin_src emacs-lisp
+  (use-package company
+    :after lsp-mode
+    :hook (lsp-mode . company-mode)
+    :bind (:map company-active-map
+                ("<tab>" . company-complete-selection))
+    (:map lsp-mode-map
+          ("<tab>" . company-indent-or-complete-common))
+    :custom
+    (company-minimum-prefix-length 1)
+    (company-idle-delay 0.0))
+
+  (use-package company-box
+    :hook (company-mode . company-box-mode))
+#+end_src
+
+*** Rainbow Delimiters
+Colorizes matching parens with differing colours!
+#+begin_src emacs-lisp
+  (use-package rainbow-delimiters
+    :hook (prog-mode . rainbow-delimiters-mode))
+#+end_src
+
+*** Commenting
+Comment with <M-/>
+#+begin_src emacs-lisp
+  (use-package evil-nerd-commenter
+    :bind ("M-/" . evilnc-comment-or-uncomment-lines))
+#+end_src
+
